@@ -176,6 +176,14 @@ then
     DONESPECIFIC=1
 fi
 
+# POSTGRESQL 8.4, 9.1 etc. 
+if grep -q "/usr/lib/postgresql/[^/]*/bin/postgres$" $TMPFILE2
+then
+    pid=$(grep "/usr/lib/postgresql/[^/]*/bin/postgres$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
+    echo "#### restarting postgresql having pid $pid"
+    service postgresql restart
+    DONESPECIFIC=1
+fi
 
 # GAM_SERVER (used by fail2ban)
 if grep -q "/usr/lib/gamin/gam_server$" $TMPFILE2

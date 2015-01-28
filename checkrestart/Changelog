@@ -1,0 +1,6 @@
+
+20150128 added spamassassin and mailgraph daemons by Maethor
+	 added postgresql 8.4 & 9.1 (and other versions) by Benjamin Sonntag
+
+20150126 First released version of checkrestart.octopuce
+
