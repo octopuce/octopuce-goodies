@@ -6,8 +6,8 @@
 #    Automatic restart of special cases, ex: munin, postgres
 #    Manual user restart for the other packages
 
-TMPFILE=/tmp/checkresart.$$.log
-TMPFILE2=/tmp/checkresart.part2.$$.log
+TMPFILE=/tmp/checkrestart.$$.log
+TMPFILE2=/tmp/checkrestart.part2.$$.log
 LOGFILE=/var/log/checkrestart.log
 
 echo "#### Launching checkrestart..."
@@ -79,6 +79,10 @@ fi
 # AMAVIS & MUNIN-NODE & SYMPA
 if grep -q "/usr/bin/perl$" $TMPFILE2
 then
+    RESTARTMAILGRAPH=0
+    mailgraphpids=""
+    RESTARTSPAMD=0
+    spamdpids=""
     RESTARTAMAVIS=0
     amavispids=""
     RESTARTMUNINNODE=0
@@ -88,6 +92,16 @@ then
     for pid in $(grep "/usr/bin/perl$" $TMPFILE2|awk '{print $1}')
     do
 	# perl launched as amavis = amavisd
+	if [ "$(ps auxwww|grep "$pid"|grep "mailgraph$")" ]
+	then
+	    RESTARTMAILGRAPH=1
+	    mailgraphpids="$pids $pid"
+	fi
+	if [ "$(ps auxwww|grep "$pid"|grep "spamd")" ]
+	then
+	    RESTARTSPAMD=1
+        spamdpids="$pids $pid"
+	fi
 	if [ "$(ps auxwww|grep "$pid"|grep "^amavis")" ]
 	then
 	    RESTARTAMAVIS=1
@@ -104,6 +118,18 @@ then
 	    sympapids="$pids $pid"
 	fi
     done
+    if [ "$RESTARTMAILGRAPH" -eq "1" ]
+    then
+	echo "#### restarting mailgraph having pids $mailgraphpids: "
+	service mailgraph restart
+	DONESPECIFIC=1
+    fi
+    if [ "$RESTARTSPAMD" -eq "1" ]
+    then
+	echo "#### restarting spamassassin having pids $spamdpids: "
+	service spamassassin restart
+	DONESPECIFIC=1
+    fi
     if [ "$RESTARTAMAVIS" -eq "1" ]
     then
 	echo "#### restarting amavis having pids $amavispids: "
@@ -129,7 +155,7 @@ fi
 # DOVECOT IMAPD
 if grep -q "/usr/lib/dovecot/imap$" $TMPFILE2
 then
-    pid=$(grep -q "/usr/lib/dovecot/imap$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
+    pid=$(grep "/usr/lib/dovecot/imap$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
     echo "#### restarting dovecot having pid $pid ... PLEASE CHECK DOVECOT AFTER THAT  "
     service dovecot stop
     sleep 5
@@ -144,7 +170,7 @@ fi
 # MYSQLD
 if grep -q "/usr/sbin/mysqld$" $TMPFILE2
 then
-    pid=$(grep -q "/usr/sbin/mysqld$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
+    pid=$(grep "/usr/sbin/mysqld$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
     echo "#### restarting mysqld having pid $pid"
     service mysql restart
     DONESPECIFIC=1
@@ -154,7 +180,7 @@ fi
 # GAM_SERVER (used by fail2ban)
 if grep -q "/usr/lib/gamin/gam_server$" $TMPFILE2
 then
-    pid=$(grep -q "/usr/lib/gamin/gam_server$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
+    pid=$(grep "/usr/lib/gamin/gam_server$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
     echo "#### killing gamin gam_server having pid $pid"
     kill $pid
     DONESPECIFIC=1
