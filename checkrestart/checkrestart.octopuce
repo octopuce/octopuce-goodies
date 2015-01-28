@@ -1,0 +1,220 @@
+#!/bin/bash
+# wraps checkrestart found in debian-goodies package
+# Adds :
+#    logging in /var/log/checkrestart.log
+#    Automatic restart of services found
+#    Automatic restart of special cases, ex: munin, postgres
+#    Manual user restart for the other packages
+
+TMPFILE=/tmp/checkresart.$$.log
+TMPFILE2=/tmp/checkresart.part2.$$.log
+LOGFILE=/var/log/checkrestart.log
+
+echo "#### Launching checkrestart..."
+checkrestart >$TMPFILE
+echo "#### Managing automatic cases" 
+if grep -q "service .* restart" $TMPFILE 
+then
+    echo "#### I will automatically restart the following services : "
+    grep "service .* restart" $TMPFILE | grep -v "service lxc restart" | grep -v "service xinetd restart" | sed -e 's/^service //' -e 's/ restart//' | tr '\n' ' '
+    echo 
+    echo -n "#### Please confirm [Yn] " ; read CONFIRM
+    if [ "$CONFIRM" != "n" -a "$CONFIRM" != "N" ]
+    then
+	if grep -q "service xinet restart" $TMPFILE
+	then
+	    echo "#### xinetd must be stop/start, doing now..."
+	    service xinetd stop
+	    sleep 1 
+	    service xinetd start
+	fi
+	grep "service .* restart" $TMPFILE | bash
+	echo "#### DONE"
+	echo ""
+	# After we did this, we should NOT have any service restart anymore ! 
+	checkrestart >$TMPFILE
+	if grep -q "service .* restart" $TMPFILE
+	then
+	    echo "#### We STILL HAVE services to reboot, please check them manually : "
+	    grep "service .* restart" $TMPFILE 
+	fi
+    fi
+else
+    echo "#### none"
+fi
+
+grep -A 1000 "These processes do not seem to have an associated init script to restart them:" $TMPFILE |grep -v "These processes do not seem to have an associated init script to restart them:" >$TMPFILE2
+
+echo "#### now managing special cases:"
+DONESPECIFIC=0
+
+# LOGIN
+if grep -q "/bin/login$" $TMPFILE2
+then
+    echo "#### Killing login: "
+    for pid in $(grep "/bin/login$" $TMPFILE2|awk '{print $1}')
+    do
+	echo "killing $pid"
+	kill -9 $pid
+	DONESPECIFIC=1
+    done
+fi
+
+# PROSODY
+if grep -q "/usr/bin/lua5.1$" $TMPFILE2
+then
+    for pid in $(grep "/usr/bin/lua5.1$" $TMPFILE2|awk '{print $1}')
+    do
+	# lua launched as prosody = prosody server
+	if [ "$(ps auxwww|grep "$pid"|grep "^prosody")" ]
+	then
+	    echo "#### restarting prosody having pid $pid: "
+	    service prosody restart
+	    DONESPECIFIC=1
+	fi
+    done
+fi
+
+
+# AMAVIS & MUNIN-NODE & SYMPA
+if grep -q "/usr/bin/perl$" $TMPFILE2
+then
+    RESTARTAMAVIS=0
+    amavispids=""
+    RESTARTMUNINNODE=0
+    muninpids=""
+    RESTARTSYMPA=0
+    sympapids=""
+    for pid in $(grep "/usr/bin/perl$" $TMPFILE2|awk '{print $1}')
+    do
+	# perl launched as amavis = amavisd
+	if [ "$(ps auxwww|grep "$pid"|grep "^amavis")" ]
+	then
+	    RESTARTAMAVIS=1
+	    amavispids="$pids $pid"
+	fi
+	if [ "$(ps auxwww|grep "$pid"|grep "munin-node$")" ]
+	then
+	    RESTARTMUNINNODE=1
+	    muninpids="$pid"
+	fi
+	if [ "$(ps auxwww|grep "$pid"|grep "^sympa")" ]
+	then
+	    RESTARTSYMPA=1
+	    sympapids="$pids $pid"
+	fi
+    done
+    if [ "$RESTARTAMAVIS" -eq "1" ]
+    then
+	echo "#### restarting amavis having pids $amavispids: "
+	service amavis restart
+	DONESPECIFIC=1
+    fi
+    if [ "$RESTARTMUNINNODE" -eq "1" ]
+    then
+	echo "#### restarting munin-node having pids $muninpids: "
+	service munin-node restart
+	DONESPECIFIC=1
+    fi
+    if [ "$RESTARTSYMPA" -eq "1" ]
+    then
+	echo "#### restarting sympa having pids $sympapids: "
+	service sympa restart
+	DONESPECIFIC=1
+    fi
+fi
+
+
+
+# DOVECOT IMAPD
+if grep -q "/usr/lib/dovecot/imap$" $TMPFILE2
+then
+    pid=$(grep -q "/usr/lib/dovecot/imap$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
+    echo "#### restarting dovecot having pid $pid ... PLEASE CHECK DOVECOT AFTER THAT  "
+    service dovecot stop
+    sleep 5
+    kill -15 $(ps fauxw|grep "dovec[o]t/"|awk '{print $2}')
+    sleep 5
+    kill -9 $(ps fauxw|grep "dovec[o]t/"|awk '{print $2}')
+    service dovecot start
+    DONESPECIFIC=1
+fi
+
+
+# MYSQLD
+if grep -q "/usr/sbin/mysqld$" $TMPFILE2
+then
+    pid=$(grep -q "/usr/sbin/mysqld$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
+    echo "#### restarting mysqld having pid $pid"
+    service mysql restart
+    DONESPECIFIC=1
+fi
+
+
+# GAM_SERVER (used by fail2ban)
+if grep -q "/usr/lib/gamin/gam_server$" $TMPFILE2
+then
+    pid=$(grep -q "/usr/lib/gamin/gam_server$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
+    echo "#### killing gamin gam_server having pid $pid"
+    kill $pid
+    DONESPECIFIC=1
+fi
+
+# PYTHON2.7 : fail2ban server
+if grep -q "/usr/bin/python2.7$" $TMPFILE2
+then
+    FAIL2BANFOUND=0
+    FAIL2BANPID=""
+    for pid in $(grep "/usr/bin/python2.7$" $TMPFILE2|awk '{print $1}')
+    do
+	# python launched as /usr/bin/fail2ban-server
+	# root      2144  0.0  0.0  71888  7900 ?        Sl   juil.18  10:13 /usr/bin/python /usr/bin/fail2ban-server -b -s /var/run/fail2ban/fail2ban.sock
+
+	if [ "$(ps auxwww|grep "$pid"|grep "/usr/bin/fail2ban-server")" ]
+	then
+	    FAIL2BANFOUND=1
+	    FAIL2BANPID="$pids $pid"
+	fi
+
+	if [ "$(ps auxwww|grep "$pid"|grep "^list")" ]
+	then
+	    MAILMANFOUND=1
+	fi
+    done
+    if [ "$FAIL2BANFOUND" -eq "1" ]
+    then
+	echo "#### restarting fail2ban having pids $FAIL2BANPID: "
+	service fail2ban restart
+	DONESPECIFIC=1
+    fi
+    if [ "$MAILMANFOUND" -eq "1" ]
+    then
+	echo "#### restarting mailman: "
+	service mailman restart
+	DONESPECIFIC=1
+    fi
+fi
+
+
+
+
+
+# End of specific process management:
+if [ "$DONESPECIFIC" != "0" ]
+then
+    echo "#### Finished"
+    checkrestart >$TMPFILE
+else
+    echo "#### None done"
+fi
+
+
+echo "#### please fix the remaining manually : "
+cat $TMPFILE
+
+echo "#### now logging into $LOGFILE"
+echo "################################################################################" >>$LOGFILE
+echo "# checkrestart launched on $(date)" >>$LOGFILE
+cat $TMPFILE >>$LOGFILE
+rm -f $TMPFILE2 $TMPFILE
+
