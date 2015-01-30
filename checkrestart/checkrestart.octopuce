@@ -199,6 +199,7 @@ if grep -q "/usr/bin/python2.7$" $TMPFILE2
 then
     FAIL2BANFOUND=0
     FAIL2BANPID=""
+    MAILMANFOUND=0
     for pid in $(grep "/usr/bin/python2.7$" $TMPFILE2|awk '{print $1}')
     do
 	# python launched as /usr/bin/fail2ban-server
