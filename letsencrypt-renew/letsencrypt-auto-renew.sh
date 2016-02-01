@@ -19,7 +19,7 @@ do
 	if [[ $DATE_JOURS_DIFF -le 30 ]]; then 
 	    echo "Trying to renew certificate for domain $domain expiring in $DATE_JOURS_DIFF days" 
 		    # Read the SAN (Subject Alt Names) for this cert (Warn: this code may not be super reliable :/ ) 
-	    SAN=$(openssl x509 -in "$CERT"  -text|grep DNS:|sed -e "s/DNS://g" -e "s/, / -d /g" -e "s/^ */ -d /") 
+	    SAN=$(openssl x509 -in "$CERT"  -text|grep DNS:|sed -e "s/DNS:/-d /g" -e "s/, / /g") 
 		        # Try to renew it: 
 	    $LETSENCRYPT_BIN certonly --config "$HERE/renew.ini" --webroot -w "$WEBROOT" -d "$domain" $SAN 
 	    if [ "$?" -ne "0" ] 
