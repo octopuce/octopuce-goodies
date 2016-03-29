@@ -21,7 +21,7 @@ do
 	    # Read the SAN (Subject Alt Names) for this cert (Warn: this code may not be super reliable :/ ) 
 	    SAN=$(openssl x509 -in "$CERT"  -text|grep DNS:|sed -e "s/DNS:/-d /g" -e "s/, / /g") 
 	    # Try to renew it: 
-	    $LETSENCRYPT_BIN certonly --webroot -w "$WEBROOT" -d "$domain" $SAN 
+	    $LETSENCRYPT_BIN certonly --force-renewal --webroot -w "$WEBROOT" -d "$domain" $SAN 
 	    if [ "$?" -ne "0" ] 
 	    then 
 		echo "Certificate /etc/letsencrypt/live/$domain has NOT been successfully renewed, please check" | mail -s "Can't renew certificate $domain on $(hostname)" $ALERT 
