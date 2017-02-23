@@ -1,0 +1,141 @@
+#!/bin/bash
+#============================================================================================#
+# Copyright (C) 2014
+# Author: Alban 
+#
+# Description
+# -----------
+# This script provides functionality for SATA disks on Linux system :
+#   - remove disk
+#   - scan host for new disks
+#
+#============================================================================================#
+#============================================================================================#
+# SCRIPT SETTINGS
+#============================================================================================#
+ISROOTREQUIRED=1 # Use 0 if you want to run it with non-root users
+FORCEARGUMENTSREQUIRED=0 # Use 0 if you want to run it without arguments
+#============================================================================================#
+# Variables
+#============================================================================================#
+BN=${0##*/}
+MYPID=$(echo $$)
+#============================================================================================#
+# ERROR CODES
+#============================================================================================#
+	ROOTISREQUIRED=100
+	NOPARAMETERSPROVIDED=101
+	CUSTOM_ERROR2=102
+	PARAMISREQUIRED=103
+	PARAMSDX=104
+	HOSTDIR=105
+	HOSTDIR=106
+	INVALIDMD=107
+	INVALIDBD=108
+#============================================================================================#
+# COMMON FUNCTIONS
+#============================================================================================#
+exit_usage()
+{
+    ERRCODE=$1
+	MSG=$2
+	if [[ -z $MSG ]] ; then
+	cat <<StartHere
+NAME ${BN}
+SYNOPSIS
+  ${BN} [-h] [scan||remove <block>]
+DESCRIPTION
+  scan	    Will scan all the SATA hosts to refresh disks
+  remove    Will remove one disk IF not used in RaidMD
+EXAMPLE
+  ${BN} scan
+  ${BN} remove $BLOCK_DEVICE
+StartHere
+	else
+		echo $MSG
+	fi
+	exit $ERRCODE
+} # end exit_usage()
+
+isRoot() # This method check if the current user is root
+{
+    if [ "root" != "$( whoami )" ] && [ $ISROOTREQUIRED -eq 1 ] ; then
+	echo "${BN} must be run as root"
+	    exit_usage $ROOTISREQUIRED
+	    fi
+}
+
+
+#============================================================================================#
+# Main methods 
+#============================================================================================#
+scan()
+{
+    echo "Scanning host"
+    for s in `find /sys/devices/ -name "*scsi_host"`; do 
+	echo "scanning $s"
+	FILE=`find $s -name "scan"`
+	echo "- - - " > $FILE 
+    done;
+}
+remove()
+{
+    # Check parameter
+    BLOCK_DEVICE="$1"
+	REGEX="^sd[[:lower:]]$"
+
+    if [ -z "$BLOCK_DEVICE" ] ; then
+		exit_usage $PARAMISREQUIRED "You must provide a valid disk name as parameter eg. sdX"
+	fi
+	if [[ ! $BLOCK_DEVICE =~ $REGEX ]] ; then
+		exit_usage $PARAMSDX "Invalid device, please provide a 'sdX'"
+	fi
+
+    echo "Checking if block device exists..."
+	SYS=(find /sys/block -name $BLOCK_DEVICE)
+	if [ -z $SYS ] ; then exit_usage $INVALIDBD "You provided an invalid block device"; fi
+
+    echo "Checking mdraid usage..."
+	MD=$(grep $BLOCK_DEVICE[0-9] /proc/mdstat)
+	if [ 0 = $? ] ; then exit_usage $INVALIDMD "You provided o block device still used in MD array"; fi
+
+    echo "Finding block device host..."
+	HOST_DIR=`cd $(dirname /sys/block/$BLOCK_DEVICE) && cd $(readlink /sys/block/$BLOCK_DEVICE)/../../../../ && pwd`
+	if [ ! -d $HOST_DIR ] ; then exit_usage $HOSTDIR "Could not find host directory for $BLOCK_DEVICE"; fi
+	DELETE=`find $HOST_DIR -name delete`
+	if [ -z $DELETE ] ; then exit_usage $HOSTDELETE "Could not find host delete access for $BLOCK_DEVICE"; fi
+	echo $DELETE
+	#echo "1" > $DELETE
+
+
+}
+
+
+#============================================================================================#
+# Startup code (This section contains logic that occurs before processing the arguments)
+#============================================================================================#
+# Checking if the script was executed as root (it may disabled by setting ISROOTREQUIRED as 0)
+isRoot
+# Check if arguments are set (it may disabled by setting FORCEARGUMENTSREQUIRED as 0)
+if [ $# -eq 0 ] && [ $FORCEARGUMENTSREQUIRED -eq 1 ]
+then
+echo "You need to provide parameters"
+exit_usage $NOPARAMETERSPROVIDED
+fi
+#============================================================================================#
+# Script argument processing
+#============================================================================================#
+
+ACTION=$1
+case $ACTION in
+    (scan) scan;;
+    (remove) remove "$2";;
+    (*) exit_usage;;
+esac
+
+
+
+###
+# Finish Bash script with Error CODE 0 = Everything is normal
+###
+exit 0
