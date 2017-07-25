@@ -39,11 +39,11 @@ function ips {
 	# IPV4, net or ip ?
 	if echo "$IP" | grep -q "/"
 	then
-	    # IPV4 IP
-	    ipset "$OPERATION" blackip4 "$IP" 2>/dev/null
-	else
 	    # IPV4 NET
 	    ipset "$OPERATION" blacknet4 "$IP" 2>/dev/null
+	else
+	    # IPV4 IP
+	    ipset "$OPERATION" blackip4 "$IP" 2>/dev/null
 	fi
     fi
     if [ "$?" = "0" ]
