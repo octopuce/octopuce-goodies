@@ -1,4 +1,5 @@
 #!/bin/bash
+# vim:set sw=4 ts=4 sts=4 expandtab:
 # wraps checkrestart found in debian-goodies package
 # Adds :
 #    logging in /var/log/checkrestart.log
@@ -12,32 +13,32 @@ LOGFILE=/var/log/checkrestart.log
 
 echo "#### Launching checkrestart..."
 checkrestart >$TMPFILE
-echo "#### Managing automatic cases" 
-if grep -q "service .* restart" $TMPFILE 
+echo "#### Managing automatic cases"
+if grep -q "service .* restart" $TMPFILE
 then
     echo "#### I will automatically restart the following services : "
     grep "service .* restart" $TMPFILE | grep -v "service lxc restart" | grep -v "service xinetd restart" | sed -e 's/^service //' -e 's/ restart//' | tr '\n' ' '
-    echo 
+    echo
     echo -n "#### Please confirm [Yn] " ; read CONFIRM
     if [ "$CONFIRM" != "n" -a "$CONFIRM" != "N" ]
     then
-	if grep -q "service xinet restart" $TMPFILE
-	then
-	    echo "#### xinetd must be stop/start, doing now..."
-	    service xinetd stop
-	    sleep 1 
-	    service xinetd start
-	fi
-	grep "service .* restart" $TMPFILE | bash
-	echo "#### DONE"
-	echo ""
-	# After we did this, we should NOT have any service restart anymore ! 
-	checkrestart >$TMPFILE
-	if grep -q "service .* restart" $TMPFILE
-	then
-	    echo "#### We STILL HAVE services to reboot, please check them manually : "
-	    grep "service .* restart" $TMPFILE 
-	fi
+        if grep -q "service xinet restart" $TMPFILE
+        then
+            echo "#### xinetd must be stop/start, doing now..."
+            service xinetd stop
+            sleep 1
+            service xinetd start
+        fi
+        grep "service .* restart" $TMPFILE | bash
+        echo "#### DONE"
+        echo ""
+        # After we did this, we should NOT have any service restart anymore !
+        checkrestart >$TMPFILE
+        if grep -q "service .* restart" $TMPFILE
+        then
+            echo "#### We STILL HAVE services to reboot, please check them manually : "
+            grep "service .* restart" $TMPFILE
+        fi
     fi
 else
     echo "#### none"
@@ -54,9 +55,9 @@ then
     echo "#### Killing login: "
     for pid in $(grep "/bin/login$" $TMPFILE2|awk '{print $1}')
     do
-	echo "killing $pid"
-	kill -9 $pid
-	DONESPECIFIC=1
+        echo "killing $pid"
+        kill -9 $pid
+        DONESPECIFIC=1
     done
 fi
 
@@ -65,13 +66,13 @@ if grep -q "/usr/bin/lua5.1$" $TMPFILE2
 then
     for pid in $(grep "/usr/bin/lua5.1$" $TMPFILE2|awk '{print $1}')
     do
-	# lua launched as prosody = prosody server
-	if [ "$(ps auxwww|grep "$pid"|grep "^prosody")" ]
-	then
-	    echo "#### restarting prosody having pid $pid: "
-	    service prosody restart
-	    DONESPECIFIC=1
-	fi
+        # lua launched as prosody = prosody server
+        if [ "$(ps auxwww|grep "$pid"|grep "^prosody")" ]
+        then
+            echo "#### restarting prosody having pid $pid: "
+            service prosody restart
+            DONESPECIFIC=1
+        fi
     done
 fi
 
@@ -91,62 +92,62 @@ then
     sympapids=""
     for pid in $(grep "/usr/bin/perl$" $TMPFILE2|awk '{print $1}')
     do
-	# perl launched as amavis = amavisd
-	if [ "$(ps auxwww|grep "$pid"|grep "mailgraph$")" ]
-	then
-	    RESTARTMAILGRAPH=1
-	    mailgraphpids="$pids $pid"
-	fi
-	if [ "$(ps auxwww|grep "$pid"|grep "spamd")" ]
-	then
-	    RESTARTSPAMD=1
+        # perl launched as amavis = amavisd
+        if [ "$(ps auxwww|grep "$pid"|grep "mailgraph$")" ]
+        then
+            RESTARTMAILGRAPH=1
+            mailgraphpids="$pids $pid"
+        fi
+        if [ "$(ps auxwww|grep "$pid"|grep "spamd")" ]
+        then
+            RESTARTSPAMD=1
         spamdpids="$pids $pid"
-	fi
-	if [ "$(ps auxwww|grep "$pid"|grep "^amavis")" ]
-	then
-	    RESTARTAMAVIS=1
-	    amavispids="$pids $pid"
-	fi
-	if [ "$(ps auxwww|grep "$pid"|grep "munin-node$")" ]
-	then
-	    RESTARTMUNINNODE=1
-	    muninpids="$pid"
-	fi
-	if [ "$(ps auxwww|grep "$pid"|grep "^sympa")" ]
-	then
-	    RESTARTSYMPA=1
-	    sympapids="$pids $pid"
-	fi
+        fi
+        if [ "$(ps auxwww|grep "$pid"|grep "^amavis")" ]
+        then
+            RESTARTAMAVIS=1
+            amavispids="$pids $pid"
+        fi
+        if [ "$(ps auxwww|grep "$pid"|grep "munin-node$")" ]
+        then
+            RESTARTMUNINNODE=1
+            muninpids="$pid"
+        fi
+        if [ "$(ps auxwww|grep "$pid"|grep "^sympa")" ]
+        then
+            RESTARTSYMPA=1
+            sympapids="$pids $pid"
+        fi
     done
     if [ "$RESTARTMAILGRAPH" -eq "1" ]
     then
-	echo "#### restarting mailgraph having pids $mailgraphpids: "
-	service mailgraph restart
-	DONESPECIFIC=1
+        echo "#### restarting mailgraph having pids $mailgraphpids: "
+        service mailgraph restart
+        DONESPECIFIC=1
     fi
     if [ "$RESTARTSPAMD" -eq "1" ]
     then
-	echo "#### restarting spamassassin having pids $spamdpids: "
-	service spamassassin restart
-	DONESPECIFIC=1
+        echo "#### restarting spamassassin having pids $spamdpids: "
+        service spamassassin restart
+        DONESPECIFIC=1
     fi
     if [ "$RESTARTAMAVIS" -eq "1" ]
     then
-	echo "#### restarting amavis having pids $amavispids: "
-	service amavis restart
-	DONESPECIFIC=1
+        echo "#### restarting amavis having pids $amavispids: "
+        service amavis restart
+        DONESPECIFIC=1
     fi
     if [ "$RESTARTMUNINNODE" -eq "1" ]
     then
-	echo "#### restarting munin-node having pids $muninpids: "
-	service munin-node restart
-	DONESPECIFIC=1
+        echo "#### restarting munin-node having pids $muninpids: "
+        service munin-node restart
+        DONESPECIFIC=1
     fi
     if [ "$RESTARTSYMPA" -eq "1" ]
     then
-	echo "#### restarting sympa having pids $sympapids: "
-	service sympa restart
-	DONESPECIFIC=1
+        echo "#### restarting sympa having pids $sympapids: "
+        service sympa restart
+        DONESPECIFIC=1
     fi
 fi
 
@@ -176,7 +177,7 @@ then
     DONESPECIFIC=1
 fi
 
-# POSTGRESQL 8.4, 9.1 etc. 
+# POSTGRESQL 8.4, 9.1 etc.
 if grep -q "/usr/lib/postgresql/[^/]*/bin/postgres$" $TMPFILE2
 then
     pid=$(grep "/usr/lib/postgresql/[^/]*/bin/postgres$" $TMPFILE2 |awk '{print $1}' | tr '\n' ' ')
@@ -202,31 +203,31 @@ then
     MAILMANFOUND=0
     for pid in $(grep "/usr/bin/python2.7$" $TMPFILE2|awk '{print $1}')
     do
-	# python launched as /usr/bin/fail2ban-server
-	# root      2144  0.0  0.0  71888  7900 ?        Sl   juil.18  10:13 /usr/bin/python /usr/bin/fail2ban-server -b -s /var/run/fail2ban/fail2ban.sock
+        # python launched as /usr/bin/fail2ban-server
+        # root      2144  0.0  0.0  71888  7900 ?        Sl   juil.18  10:13 /usr/bin/python /usr/bin/fail2ban-server -b -s /var/run/fail2ban/fail2ban.sock
 
-	if [ "$(ps auxwww|grep "$pid"|grep "/usr/bin/fail2ban-server")" ]
-	then
-	    FAIL2BANFOUND=1
-	    FAIL2BANPID="$pids $pid"
-	fi
+        if [ "$(ps auxwww|grep "$pid"|grep "/usr/bin/fail2ban-server")" ]
+        then
+            FAIL2BANFOUND=1
+            FAIL2BANPID="$pids $pid"
+        fi
 
-	if [ "$(ps auxwww|grep "$pid"|grep "^list")" ]
-	then
-	    MAILMANFOUND=1
-	fi
+        if [ "$(ps auxwww|grep "$pid"|grep "^list")" ]
+        then
+            MAILMANFOUND=1
+        fi
     done
     if [ "$FAIL2BANFOUND" -eq "1" ]
     then
-	echo "#### restarting fail2ban having pids $FAIL2BANPID: "
-	service fail2ban restart
-	DONESPECIFIC=1
+        echo "#### restarting fail2ban having pids $FAIL2BANPID: "
+        service fail2ban restart
+        DONESPECIFIC=1
     fi
     if [ "$MAILMANFOUND" -eq "1" ]
     then
-	echo "#### restarting mailman: "
-	service mailman restart
-	DONESPECIFIC=1
+        echo "#### restarting mailman: "
+        service mailman restart
+        DONESPECIFIC=1
     fi
 fi
 
