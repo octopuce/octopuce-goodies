@@ -20,7 +20,7 @@ def compareRuleFiles (sourceFile,modifiedFile):
         for mo_spam_lot in modified_data :
             if(so_spam_lot.split(",")[0]==mo_spam_lot.split(",")[0]):
                 if(so_spam_lot.split(",")[1]!=mo_spam_lot.split(",")[1]):
-                    print("score: " + mo_spam_lot.split(',')[0]+" "+mo_spam_lot.split(",")[1])
+                    print("score " + mo_spam_lot.split(',')[0]+" "+mo_spam_lot.split(",")[1])
 
 
 compareRuleFiles(sys.argv[1],sys.argv[2])
